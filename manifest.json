@@ -6,7 +6,7 @@
   "permissions": [
     "storage",
     "tabs",
-	"*://*.profile-v3.intra.42.fr/*"
+	  "https://profile-v3.intra.42.fr/*"
   ],
 
   "browser_action": {
@@ -21,8 +21,16 @@
 
   "content_scripts": [
     {
-      "matches": ["*://*.profile-v3.intra.42.fr/*"],
+      "matches": ["https://profile-v3.intra.42.fr/*"],
+      "css": ["style.css"],
       "js": ["content.js"]
     }
-  ]
+  ],
+
+  "browser_specific_settings": {
+  "gecko": {
+    "id": "intrav3addon@mpouillo",
+    "strict_min_version": "58.0"
+    }
+  }
 }

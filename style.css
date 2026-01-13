@@ -1,0 +1,20 @@
+.reset-icon {
+	color: rgb(232, 230, 227);
+	cursor: pointer;
+	transition: transform 0.2s ease, color 0.2s ease;
+	font-size: 14px;
+}
+
+.reset-icon:hover {
+	color: #ff4848;
+	transform: scale(1.2);
+}
+
+@keyframes flash-green {
+	0% { color: #00ff6a; }
+	100% { color: inherit; }
+}
+
+.flash-save {
+	animation: flash-green 0.8s ease-out;
+}
