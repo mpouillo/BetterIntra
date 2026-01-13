@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "Intra Modifier",
+  "version": "1.0",
+
+  "permissions": [
+    "storage",
+    "tabs",
+	"*://*.profile-v3.intra.42.fr/*"
+  ],
+
+  "browser_action": {
+    "default_popup": "popup/popup.html"
+  },
+
+  "description": "Changes elements of 42 intra v3.",
+
+  "icons": {
+    "42": "icons/42.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.profile-v3.intra.42.fr/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
