@@ -1,19 +1,19 @@
 {
   "manifest_version": 2,
-  "name": "Intra Modifier",
+  "name": "BetterIntra",
   "version": "1.0",
 
   "permissions": [
     "storage",
     "tabs",
-	  "https://profile-v3.intra.42.fr/*"
+	  "https://*.intra.42.fr/*"
   ],
 
   "browser_action": {
-    "default_popup": "popup/popup.html"
+    "default_popup": "generic/popup/popup.html"
   },
 
-  "description": "Changes elements of 42 intra v3.",
+  "description": "The Profile V3 Enhancement Project.",
 
   "icons": {
     "42": "icons/42.png"
@@ -21,15 +21,16 @@
 
   "content_scripts": [
     {
-      "matches": ["https://profile-v3.intra.42.fr/*"],
-      "css": ["style.css"],
-      "js": ["content.js"]
+      "matches": ["*://*.intra.42.fr/*"],
+      "css": ["generic/style.css"],
+      "js": ["generic/lib/findAndReplaceDOMText.js", "generic/nicknamer.js"],
+      "run_at": "document_end"
     }
   ],
 
   "browser_specific_settings": {
   "gecko": {
-    "id": "intrav3addon@mpouillo",
+    "id": "betterintra@mpouillo",
     "strict_min_version": "58.0"
     }
   }
