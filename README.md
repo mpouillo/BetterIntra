@@ -10,3 +10,4 @@ Soon™
 
 Planned:
 - Monthly logtimes display
+- Custom profile background
