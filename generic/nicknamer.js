@@ -69,6 +69,7 @@ async function updateProfileNameElement(profileNameElement, currentPageUserLogin
 
     const resetButton = document.createElement('span');
     resetButton.textContent = 'Reset nickname';
+    resetButton.classList.add('reset-button');
     resetButton.style.display = 'none';
     container.appendChild(resetButton);
 
