@@ -1,4 +1,4 @@
-async function start() {
+async function setCustomBackground() {
     const data = await DataStorage.getFeature('background');
     if (data.settings?.enabled === false) return;
 
@@ -24,7 +24,7 @@ async function start() {
 	fileInput.style.display = 'none';
 	fileInput.id = 'betterintra-background-file-input';
 	document.body.appendChild(fileInput);
-	
+
 	fileInput.addEventListener('change', async (event) => {
 		const file = event.target.files[0];
 		if (!file) return;
@@ -35,7 +35,7 @@ async function start() {
 			img.onload = async () => {
 				const canvas = document.createElement('canvas');
 				const ctx = canvas.getContext('2d');
-				
+
 				const scale = Math.min(1, 1920 / img.width);
 				canvas.width = img.width * scale;
 				canvas.height = img.height * scale;
@@ -43,37 +43,32 @@ async function start() {
 				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
 				const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-				
+
 				await DataStorage.updateSettings('background', { image: compressedBase64 });
 				window.location.reload();
 			};
 			img.src = e.target.result;
 		}
 		reader.readAsDataURL(file);
-});
+	});
 
-	let uploadButton = null;
+	const buttonContainer = await getOrCreateButtonContainer();
+	const imageIconSVG = `
+			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+				<circle cx="8.5" cy="8.5" r="1.5"></circle>
+				<polyline points="21 15 16 10 5 21"></polyline>
+			</svg>`;
+	const uploadButton = createProfileHeaderButton("Edit BG", imageIconSVG);
 
- 	const observer = new MutationObserver((mutations, obs) => {
-        const profileHeaderTop = document.querySelector('.border.border-neutral-600.bg-ft-gray\\/50.relative');
-        const loginLocationBadge = document.querySelector('.absolute.top-2.right-4');
+	uploadButton.setAttribute('id', 'custombg-upload-button');
+	uploadButton.style.display = 'inline';
 
-        if (profileHeaderTop && loginLocationBadge) {
-            obs.disconnect();
-            const offset = loginLocationBadge.offsetHeight + 56;
-            uploadButton = createProfileHeaderButton("Edit BG", offset);
+	uploadButton.addEventListener('click', () => {
+		fileInput.click();
+	});
 
-			uploadButton.classList.add('upload-button');
-            uploadButton.style.display = 'inline';
-            profileHeaderTop.appendChild(uploadButton);
-			
-			uploadButton.addEventListener('click', () => {
-				fileInput.click();
-			})
-        }
-    });
-
-	observer.observe(document.body, { childList: true, subtree: true });
+	buttonContainer.appendChild(uploadButton);
 }
 
-start();
+setCustomBackground();

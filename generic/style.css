@@ -1,37 +1,88 @@
-.reset-button {
+#betterintra-button-container {
+	display: flex;
+	flex-direction: column;
+	gap: .5rem;
+	align-items: flex-end;
+}
+
+.button-group {
+	position: relative;
+    display: flex;
+	justify-content: flex-end;
+    align-items: center;
+	--local-edit-width: 100px;
+}
+
+.button-group:hover {
+    padding-left: 100px;
+}
+
+.button-slide-reveal {
+	position: absolute;
+	z-index: 1;
+    opacity: 0;
+	pointer-events: none;
+	transform: translateX(0);
+	transition:
+        transform 0.3s ease,
+        opacity 0.3s ease,
+        pointer-events 0s 0.3s;
+    white-space: nowrap;
+}
+
+.button-group:hover .button-slide-reveal {
+    opacity: 1;
+	pointer-events: auto;
+    transform: translateX(calc(var(--local-edit-width) * -0.9));
+    transition:
+        transform 0.3s ease,
+        opacity 0.3s ease,
+        pointer-events 0s 0.3s;
+}
+
+.nicknamer-editing-active {
+	border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: text;
+}
+
+.profile-header-button {
 	color: rgb(232, 230, 227);
 	cursor: pointer;
 	transition: transform 0.2s ease, color 0.2s ease;
 	font-size: 14px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.reset-button:hover {
-	color: #ff4848;
+.profile-header-button:hover {
 	transform: scale(1.05);
 }
 
-.reset-button:active {
+.profile-header-button:active {
+	transform: scale(1.1);
+}
+
+#nicknamer-edit-button, #custombg-edit-button {
+	z-index: 2;
+}
+
+#nicknamer-reset-button:hover {
 	color: #ff4848;
+}
+
+#nicknamer-reset-button:active {
 	background-color: #551212;
-	transform: scale(1.1);
 }
 
-.upload-button {
-	color: rgb(232, 230, 227);
-	cursor: pointer;
-	transition: transform 0.2s ease, color 0.2s ease;
-	font-size: 14px;
+#custombg-upload-button:hover {
+	color: #48ffff;
 }
 
-.upload-button:hover {
-	color: #c248ff;
-	transform: scale(1.05);
-}
-
-.upload-button:active {
-	color: #c248ff;
-	background-color: rgb(96, 37, 121);
-	transform: scale(1.1);
+#custombg-upload-button:active {
+	background-color: #1c6262;
 }
 
 @keyframes flash-green {
