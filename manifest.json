@@ -31,18 +31,19 @@
 
   "content_scripts": [
     {
-      "matches": [
-        "https://*.intra.42.fr/*"
-      ],
-      "js": [
-        "generic/lib/findAndReplaceDOMText.js",
-        "generic/storage-helper.js",
-        "generic/nicknamer.js",
-        "generic/custom-background.js"
-      ],
-      "css": [
-        "generic/style.css"
-      ],
+      "matches": ["*://*.intra.42.fr/*"],
+      "js": ["generic/lib/findAndReplaceDOMText.js", "generic/storage.js", "generic/utils.js"],
+      "css": ["generic/style.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.intra.42.fr/*"],
+      "js": ["generic/nicknamer.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://profile-v3.intra.42.fr/*"],
+      "js": ["generic/custom-background.js"],
       "run_at": "document_start"
     }
   ]
