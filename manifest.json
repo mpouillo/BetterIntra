@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "BetterIntra",
   "description": "Quality of life features for 42's intranet.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "permissions": [
     "storage",
     "https://*.intra.42.fr/*"
@@ -32,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.intra.42.fr/*"],
-      "js": ["generic/storage.js", "generic/utils.js"],
+      "js": ["generic/lib/findAndReplaceDOMText.js", "generic/storage.js", "generic/utils.js"],
       "css": ["generic/style.css"],
       "run_at": "document_start"
     },
