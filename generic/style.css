@@ -97,20 +97,11 @@
 	background-color: #551212;
 }
 
-@keyframes flash-green {
-	0% { color: #00ff6a; }
+@keyframes flash-color {
+	0% { color: var(--flash-color); }
 	100% { color: inherit; }
 }
 
-@keyframes flash-red {
-	0% { color: #ff4848; }
-	100% { color: inherit; }
-}
-
-.flash-save {
-	animation: flash-green 0.8s ease-out;
-}
-
-.flash-reset {
-	animation: flash-red 0.8s ease-out;
+.flash-text {
+	animation: flash-color 0.8s ease-out;
 }

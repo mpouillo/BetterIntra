@@ -1,246 +1,273 @@
-const nicknamerTargetClassName = 'nicknamer-target';
+const Nicknamer = {
+	targetClass: 'nicknamer-target',
+	_isProcessing: false,
+    _isBuildingUI: false,
 
-async function runNicknamer() {
-    let nicknamerData = await DataStorage.getFeature('nicknamer');
-    if (nicknamerData.settings?.enabled === false) return;
+	async getNicknames() {
+		const data = await DataStorage.getFeature('nicknamer');
+        return data.nicknames || {};
+	},
 
-    let nicknames = nicknamerData.nicknames || {};
+	tagLogins(root, login) {
+		if (!login) return;
 
-    Object.keys(nicknames).forEach(login => {
-        tagLogins(document.body, login);
-        updateNicknames(nicknames, login);
-    });
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+				acceptNode: (node) => {
+					const parent = node.parentElement;
+					if (!parent) return NodeFilter.FILTER_REJECT;
 
-    let isProcessing = false;
+					const isForbidden = parent.closest(`script, style, input, textarea, .${this.targetClass}`) ||
+										parent.closest('a[href*="mailto:"]') ||
+										parent.closest('.w-full.top-0.fixed.z-40.pl-20.h-16');
 
-    const observer = new MutationObserver(async (mutations, obs) => {
-        if (isProcessing) return;
+					if (isForbidden || parent.isContentEditable) {
+						return NodeFilter.FILTER_REJECT;
+					} else return NodeFilter.FILTER_ACCEPT;
+				}
+			}
+		)
 
-        nicknamerData = await DataStorage.getFeature('nicknamer');
-        nicknames = nicknamerData.nicknames || {};
-        
-        const profileNameElement = document.querySelector('.text-2xl');
-        const emailElement = document.querySelector('a[class*="decoration-[hsl(var(--legacy-main)"][href*="mailto:"]');
+		const nodesToProcess = [];
+		let currentNode;
 
-        if (profileNameElement && emailElement && !profileNameElement.dataset.trueName) {
-            isProcessing = true;
+		while (currentNode = walker.nextNode()) {
+			if (currentNode.textContent.includes(login)) {
+				nodesToProcess.push(currentNode);
+			}
+		}
 
-            profileNameElement.dataset.trueName = profileNameElement.textContent;
+		nodesToProcess.forEach(node => {
+			let temp = node;
+			while (temp && temp.textContent.includes(login)) {
+				temp = this.wrapNode(temp, login);
+			}
+		});
+	},
 
-            const currentPageUserLogin = emailElement.textContent.split('@')[0];
-            const savedName = nicknames[currentPageUserLogin];
+	wrapNode(textNode, login) {
+		const index = textNode.textContent.indexOf(login);
+		if (index == -1) return null;
 
-            nicknamerNameUpdater(profileNameElement, currentPageUserLogin);
-            if (savedName) profileNameElement.textContent = savedName;
+		const loginNode = textNode.splitText(index);
+		const remainingTextNode = loginNode.splitText(login.length);
+		const span = document.createElement('span');
 
-            if (!document.getElementById('nicknamer-button-group')) {
-                nicknamerSetupButtons(profileNameElement, currentPageUserLogin, savedName);
-            }
+		span.className = this.targetClass;
+		span.dataset.login = login;
+		span.textContent = loginNode.textContent;
+		loginNode.parentNode.replaceChild(span, loginNode);
 
-            isProcessing = false;
-        }
+		return remainingTextNode;
+	},
 
-        let nodesToScan = [];
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) nodesToScan.push(node);
-            })
-        });
+	async updateLoginInstances(login) {
+		const nicknames = await this.getNicknames();
+		const nickname = nicknames[login];
+		const targets = document.querySelectorAll(`.${this.targetClass}[data-login="${login}"]`);
 
-        if (nodesToScan.length > 0) {
-            isProcessing = true;
-            nodesToScan.forEach(newNode => {
-                Object.keys(nicknames).forEach(login => {
-                    tagLogins(newNode, login);
-                    updateNicknames(nicknames, login);
-                });
-            });
-            isProcessing = false;
-        }
-    });
+		targets.forEach(el => {
+			const newText = nickname ? `${nickname} (${login})` : login;
+			if (el.textContent !== newText) {
+				el.textContent = newText;
+			}
+		});
+	},
 
-    observer.observe(document.body, { childList: true, subtree: true });
-}
-
-function wrapLoginInNode(textNode, login) {
-    const index = textNode.textContent.indexOf(login);
-    if (index == -1) return null;
-
-    const loginNode = textNode.splitText(index);
-    const remainingTextNode = loginNode.splitText(login.length);
-
-    const span = document.createElement('span');
-    span.className = `${nicknamerTargetClassName}`;
-    span.dataset.login = login;
-    span.textContent = loginNode.textContent;
-
-    loginNode.parentNode.replaceChild(span, loginNode);
-    return remainingTextNode;
-}
-
-function tagLogins(rootElement, login) {
-    if (!login) return;
-
-    let walker = document.createTreeWalker(
-        rootElement,
-        NodeFilter.SHOW_TEXT,
-        {
-            acceptNode: (node) => {
-                const parent = node.parentElement;
-                if (!parent) return NodeFilter.FILTER_REJECT;
-
-                const isForbidden = parent.closest(`script, style, input, textarea, .${nicknamerTargetClassName}`) ||
-                                    parent.closest('a[href*="mailto:"]') ||
-                                    parent.closest('.w-full.top-0.fixed.z-40.pl-20.h-16');
-
-                if (isForbidden || parent.isContentEditable) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return NodeFilter.FILTER_ACCEPT;
-            }
-        }
-    )
-
-    const nodesToProcess = [];
-    let currentNode;
-
-    while (currentNode = walker.nextNode()) {
-        if (currentNode.textContent.includes(login)) {
-            nodesToProcess.push(currentNode);
-        }
+	syncName(nameElement, newName = null) {
+    if (!nameElement.dataset.trueName) {
+        nameElement.dataset.trueName = nameElement.textContent.trim();
     }
 
-    nodesToProcess.forEach(node => {
-        while (node && node.textContent.includes(login)) {
-            node = wrapLoginInNode(node, login);
+    if (nameElement.classList.contains('nicknamer-editing-active')) return;
+
+    if (newName) {
+        if (nameElement.textContent !== newName) {
+            nameElement.textContent = newName;
         }
-    });
-}
+    } else {
+        nameElement.textContent = nameElement.dataset.trueName;
+    }
+},
 
-async function updateNicknames(nicknames, login) {
-    const nickname = nicknames[login];
-    const targets = document.querySelectorAll(`.${nicknamerTargetClassName}[data-login="${login}"]`);
+	async setupProfileUI(nameElement, login, savedName) {
+		if (document.getElementById('nicknamer-button-group') || this._isBuildingUI) return;
+		this._isBuildingUI = true;
 
-    targets.forEach(el => {
-        const newText = nickname ? `${nickname} (${login})` : login;
-        if (el.textContent !== newText) {
-            el.textContent = newText;
+        // Button container setup
+		const buttonContainer = await getOrCreateButtonContainer();
+
+        if (document.getElementById('nicknamer-button-group')) {
+            this._isBuildingUI = false;
+            return;
         }
-    })
-}
 
-function nicknamerCreateEditButton(profileNameElement) {
-    const editButton = createProfileHeaderButton("Edit name", penIconSVG);
+		// Edit button setup
+		const editButton = createProfileHeaderButton("Edit name", penIconSVG);
 
-    editButton.setAttribute('id', 'nicknamer-edit-button')
-    editButton.style.display = 'inline-flex';
+		editButton.setAttribute('id', 'nicknamer-edit-button')
+		editButton.style.display = 'inline-flex';
 
-     editButton.addEventListener('click', async () => {
-        const range = document.createRange();
-        const selection = window.getSelection()
+		editButton.onclick = async () => {
+            nameElement.classList.add('nicknamer-editing-active');
+			nameElement.contentEditable = true;
+			nameElement.focus();
 
-        profileNameElement.classList.add('nicknamer-editing-active');
-        profileNameElement.contentEditable = true;
-        profileNameElement.focus();
+            const selection = window.getSelection();
+			const range = document.createRange();
+			
+            if (nameElement.childNodes.length > 0) {
+                range.selectNodeContents(nameElement);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+		};
+
+		// Reset button setup
+		const resetButton = createProfileHeaderButton("Reset name", trashIconSVG);
+
+		resetButton.id = 'nicknamer-reset-button';
+		resetButton.classList.add('button-slide-reveal');
+		resetButton.style.display = nameElement.innerText !== nameElement.dataset.trueName ? 'inline-flex' : 'none';
+
+		resetButton.onclick = async () => {
+			const currentNicknames = await this.getNicknames();
+			delete currentNicknames[login];
+			await DataStorage.updateSettings('nicknamer', { nicknames: currentNicknames });
+
+			resetButton.style.display = 'none';
+			this.syncName(nameElement);
+			nameElement.contentEditable = false;
+
+			this.triggerFlash(nameElement, "#ff4848");
+			this.updateLoginInstances(login);
+		};
+
+		// Button group setup
+		const buttonsGroup = document.createElement('div');
+
+		buttonsGroup.className = 'button-group';
+		buttonsGroup.setAttribute('id', 'nicknamer-button-group');
+		buttonsGroup.appendChild(resetButton);
+		buttonsGroup.appendChild(editButton);
+
+        buttonContainer.appendChild(buttonsGroup);
+
+		// Needed to offset reset button depending on edit button width
+		const resizeObserver = new ResizeObserver(() => {
+			const width = editButton.offsetWidth;
+			buttonsGroup.style.setProperty('--local-edit-width', `${width}px`);
+		}).observe(editButton);
+
+        // Name element listeners/attribute setup
+        nameElement.setAttribute('spellcheck', 'false');
+
+		nameElement.onblur = async () => {
+			const newName = nameElement.textContent.trim();
+			const resetButton = document.getElementById('nicknamer-reset-button');
+
+            nameElement.classList.remove('nicknamer-editing-active');
+            nameElement.contentEditable = false;
+
+			if (newName !== "" && newName !== nameElement.dataset.trueName) {
+				await this.saveNickname(login, newName);
+                this.syncName(nameElement, newName);
+
+				if (resetButton) resetButton.style.display = 'inline-flex';
+				this.triggerFlash(nameElement, "#00ff6a");
+
+				this.tagLogins(document.body, login);
+				this.updateLoginInstances(login);
+			} else {
+				if (resetButton) resetButton.click();
+			}
+		};
+
+		nameElement.onkeydown  = (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				nameElement.blur();
+			}
+		};
+
+		this._isBuildingUI = false;
+	},
+
+    triggerFlash(element, color) {
+        element.style.setProperty('--flash-color', `${color}`);
+        element.classList.remove('flash-text');
+        void element.offsetWidth;
+        element.classList.add('flash-text');
+    },
+
+	async saveNickname(login, newName) {
+		const nicknames = await this.getNicknames();
+		nicknames[login] = newName;
+		await DataStorage.updateSettings('nicknamer', { nicknames: nicknames });
+	},
+
+	async init() {
+		const data = await DataStorage.getFeature('nicknamer');
+		if (data.settings?.enabled === false) return;
+
+        const nicknames = data.nicknames || {};
+    
+        // Attempt to tag and update logins on page load
+        Object.keys(nicknames).forEach(login => {
+            this.tagLogins(document.body, login)
+            this.updateLoginInstances(login);
+        });
+
+        // Updates attemps after mutations
+		const observer = new MutationObserver(async (mutations) => {
+            if (this._isProcessing 
+                || mutations.every(m => m.target.classList?.contains(this.targetClass) 
+                || m.target.id === 'nicknamer-button-group')) {
+                    return;
+                }
+
+            if (!document.querySelector('.text-2xl')) {
+                const existingGroup = document.getElementById('nicknamer-button-group');
+                if (existingGroup) existingGroup.remove();
+            }
+
+			const nameElement = document.querySelector('.text-2xl');
+			const emailElement = document.querySelector('a[href*="mailto:"]');
+
+			if (nameElement && emailElement) {
+				const login = emailElement.textContent.split('@')[0].trim();
+                const nicknames = await this.getNicknames();
+                const savedName = nicknames[login];
+
+                this.syncName(nameElement, savedName);
+				this.setupProfileUI(nameElement, login, savedName);
+                this.updateLoginInstances(login);
+			}
+
+            const hasAddedNodes = mutations.some(m => m.addedNodes.length > 0);
         
-        range.selectNodeContents(profileNameElement);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    });
+            if (hasAddedNodes) {
+                this._isProcessing = true;
+                const currentNicknames = await this.getNicknames();
+                const keys = Object.keys(currentNicknames);
+                
+                mutations.forEach(m => {
+                    m.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) {
+                            keys.forEach(login => this.tagLogins(node, login));
+                        }
+                    });
+                });
 
-    return editButton;
+                keys.forEach(login => {this.updateLoginInstances(login);
+                });
+
+                this._isProcessing = false;
+            }
+		});
+
+		observer.observe(document.body, { childList: true, subtree: true });
+	}
 }
 
-function nicknamerCreateResetButton(profileNameElement, currentPageUserLogin, savedName) {
-    const resetButton = createProfileHeaderButton("Reset name", trashIconSVG);
-
-    resetButton.setAttribute('id', 'nicknamer-reset-button');
-    resetButton.classList.add('button-slide-reveal');
-    resetButton.style.display = savedName ? 'inline-flex' : 'none';
-
-    resetButton.addEventListener('click', async () => {
-        const nicknamerData = await DataStorage.getFeature('nicknamer');
-        const nicknames = nicknamerData.nicknames || {};
-
-        delete nicknames[currentPageUserLogin];
-        await DataStorage.updateSettings('nicknamer', { nicknames: nicknames });
-
-        resetButton.style.display = 'none';
-        profileNameElement.textContent = trueName;
-        profileNameElement.contentEditable = false;
-
-        profileNameElement.classList.remove('flash-save');
-        profileNameElement.classList.remove('flash-reset');
-        void profileNameElement.offsetWidth;
-        profileNameElement.classList.add('flash-reset');
-
-        updateNicknames(nicknames, currentPageUserLogin);
-    });
-
-    return resetButton;
-}
-
-async function nicknamerSetupButtons(profileNameElement, currentPageUserLogin, savedName) {
-    const buttonContainer = await getOrCreateButtonContainer();
-    const resetButton = nicknamerCreateResetButton(profileNameElement, currentPageUserLogin, savedName);
-    const editButton = nicknamerCreateEditButton(profileNameElement);
-    const buttonsGroup = document.createElement('div');
-
-    buttonsGroup.className = 'button-group';
-    buttonsGroup.setAttribute('id', 'nicknamer-button-group');
-    buttonsGroup.appendChild(resetButton);
-    buttonsGroup.appendChild(editButton);
-    buttonContainer.appendChild(buttonsGroup);
-
-    const resizeObserver = new ResizeObserver(() => {
-        const width = editButton.offsetWidth;
-        buttonsGroup.style.setProperty('--local-edit-width', `${width}px`);
-    });
-
-    resizeObserver.observe(editButton);
-}
-
-async function nicknamerNameUpdater(profileNameElement, currentPageUserLogin) {
-    const trueName = profileNameElement.dataset.trueName;
-
-    profileNameElement.setAttribute('spellcheck', 'false');
-
-    profileNameElement.addEventListener('blur', async () => {
-        const newName = profileNameElement.textContent.trim();
-        const nicknamerData = await DataStorage.getFeature('nicknamer');
-        const nicknames = nicknamerData.nicknames || {};
-        const resetButton = document.getElementById('nicknamer-reset-button');
-
-        if (newName !== "" && newName !== trueName) {
-            nicknames[currentPageUserLogin] = newName;
-            await DataStorage.updateSettings('nicknamer', { nicknames: nicknames });
-
-            profileNameElement.textContent = newName;
-
-            if (resetButton) resetButton.style.display = 'inline';
-
-            profileNameElement.classList.remove('flash-reset');
-            profileNameElement.classList.remove('flash-save');
-            void profileNameElement.offsetWidth;
-            profileNameElement.classList.add('flash-save');
-
-            tagLogins(document.body, currentPageUserLogin);
-            updateNicknames(nicknames, currentPageUserLogin);
-        } else {
-            if (resetButton) resetButton.click();
-        }
-
-        profileNameElement.contentEditable = false;
-        profileNameElement.classList.remove('nicknamer-editing-active');
-    });
-
-    profileNameElement.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            profileNameElement.blur();
-        }
-    });
-}
-
-runNicknamer();
+Nicknamer.init();
