@@ -18,15 +18,25 @@ async function runNicknamer() {
 
         nicknamerData = await DataStorage.getFeature('nicknamer');
         nicknames = nicknamerData.nicknames || {};
-
+        
         const profileNameElement = document.querySelector('.text-2xl');
         const emailElement = document.querySelector('a[class*="decoration-[hsl(var(--legacy-main)"][href*="mailto:"]');
 
         if (profileNameElement && emailElement && !profileNameElement.dataset.trueName) {
             isProcessing = true;
+
             profileNameElement.dataset.trueName = profileNameElement.textContent;
+
             const currentPageUserLogin = emailElement.textContent.split('@')[0];
-            await updateProfileNameElement(profileNameElement, currentPageUserLogin);
+            const savedName = nicknames[currentPageUserLogin];
+
+            nicknamerNameUpdater(profileNameElement, currentPageUserLogin);
+            if (savedName) profileNameElement.textContent = savedName;
+
+            if (!document.getElementById('nicknamer-button-group')) {
+                nicknamerSetupButtons(profileNameElement, currentPageUserLogin, savedName);
+            }
+
             isProcessing = false;
         }
 
@@ -50,6 +60,22 @@ async function runNicknamer() {
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function wrapLoginInNode(textNode, login) {
+    const index = textNode.textContent.indexOf(login);
+    if (index == -1) return null;
+
+    const loginNode = textNode.splitText(index);
+    const remainingTextNode = loginNode.splitText(login.length);
+
+    const span = document.createElement('span');
+    span.className = `${nicknamerTargetClassName}`;
+    span.dataset.login = login;
+    span.textContent = loginNode.textContent;
+
+    loginNode.parentNode.replaceChild(span, loginNode);
+    return remainingTextNode;
 }
 
 function tagLogins(rootElement, login) {
@@ -91,22 +117,6 @@ function tagLogins(rootElement, login) {
     });
 }
 
-function wrapLoginInNode(textNode, login) {
-    const index = textNode.textContent.indexOf(login);
-    if (index == -1) return null;
-
-    const loginNode = textNode.splitText(index);
-    const remainingTextNode = loginNode.splitText(login.length);
-
-    const span = document.createElement('span');
-    span.className = `${nicknamerTargetClassName}`;
-    span.dataset.login = login;
-    span.textContent = loginNode.textContent;
-
-    loginNode.parentNode.replaceChild(span, loginNode);
-    return remainingTextNode;
-}
-
 async function updateNicknames(nicknames, login) {
     const nickname = nicknames[login];
     const targets = document.querySelectorAll(`.${nicknamerTargetClassName}[data-login="${login}"]`);
@@ -119,33 +129,35 @@ async function updateNicknames(nicknames, login) {
     })
 }
 
-async function updateProfileNameElement(profileNameElement, currentPageUserLogin) {
-    let nicknamerData = await DataStorage.getFeature('nicknamer');
-    const nicknames = nicknamerData.nicknames || {};
-    const savedName = nicknames[currentPageUserLogin];
-    const trueName = profileNameElement.dataset.trueName;
-
-    const buttonContainer = await getOrCreateButtonContainer();
-
-    const buttonsGroup = document.createElement('div');
-    buttonsGroup.className = 'button-group';
-
+function nicknamerCreateEditButton(profileNameElement) {
     const editButton = createProfileHeaderButton("Edit name", penIconSVG);
-    const resetButton = createProfileHeaderButton("Reset name", trashIconSVG);
 
     editButton.setAttribute('id', 'nicknamer-edit-button')
     editButton.style.display = 'inline-flex';
 
+     editButton.addEventListener('click', async () => {
+        const range = document.createRange();
+        const selection = window.getSelection()
+
+        profileNameElement.classList.add('nicknamer-editing-active');
+        profileNameElement.contentEditable = true;
+        profileNameElement.focus();
+        
+        range.selectNodeContents(profileNameElement);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    });
+
+    return editButton;
+}
+
+function nicknamerCreateResetButton(profileNameElement, currentPageUserLogin, savedName) {
+    const resetButton = createProfileHeaderButton("Reset name", trashIconSVG);
+
     resetButton.setAttribute('id', 'nicknamer-reset-button');
     resetButton.classList.add('button-slide-reveal');
     resetButton.style.display = savedName ? 'inline-flex' : 'none';
-
-    const resizeObserver = new ResizeObserver(() => {
-        const width = editButton.offsetWidth;
-        buttonsGroup.style.setProperty('--local-edit-width', `${width}px`);
-    });
-
-    resizeObserver.observe(editButton);
 
     resetButton.addEventListener('click', async () => {
         const nicknamerData = await DataStorage.getFeature('nicknamer');
@@ -166,23 +178,31 @@ async function updateProfileNameElement(profileNameElement, currentPageUserLogin
         updateNicknames(nicknames, currentPageUserLogin);
     });
 
-    editButton.addEventListener('click', async () => {
-        const range = document.createRange();
-        const selection = window.getSelection()
+    return resetButton;
+}
 
-        profileNameElement.classList.add('nicknamer-editing-active');
-        profileNameElement.contentEditable = true;
-        profileNameElement.focus();
-        
-        range.selectNodeContents(profileNameElement);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    });
+async function nicknamerSetupButtons(profileNameElement, currentPageUserLogin, savedName) {
+    const buttonContainer = await getOrCreateButtonContainer();
+    const resetButton = nicknamerCreateResetButton(profileNameElement, currentPageUserLogin, savedName);
+    const editButton = nicknamerCreateEditButton(profileNameElement);
+    const buttonsGroup = document.createElement('div');
 
+    buttonsGroup.className = 'button-group';
+    buttonsGroup.setAttribute('id', 'nicknamer-button-group');
     buttonsGroup.appendChild(resetButton);
     buttonsGroup.appendChild(editButton);
     buttonContainer.appendChild(buttonsGroup);
+
+    const resizeObserver = new ResizeObserver(() => {
+        const width = editButton.offsetWidth;
+        buttonsGroup.style.setProperty('--local-edit-width', `${width}px`);
+    });
+
+    resizeObserver.observe(editButton);
+}
+
+async function nicknamerNameUpdater(profileNameElement, currentPageUserLogin) {
+    const trueName = profileNameElement.dataset.trueName;
 
     profileNameElement.setAttribute('spellcheck', 'false');
 
@@ -190,13 +210,15 @@ async function updateProfileNameElement(profileNameElement, currentPageUserLogin
         const newName = profileNameElement.textContent.trim();
         const nicknamerData = await DataStorage.getFeature('nicknamer');
         const nicknames = nicknamerData.nicknames || {};
+        const resetButton = document.getElementById('nicknamer-reset-button');
 
         if (newName !== "" && newName !== trueName) {
             nicknames[currentPageUserLogin] = newName;
             await DataStorage.updateSettings('nicknamer', { nicknames: nicknames });
 
             profileNameElement.textContent = newName;
-            resetButton.style.display = 'inline';
+
+            if (resetButton) resetButton.style.display = 'inline';
 
             profileNameElement.classList.remove('flash-reset');
             profileNameElement.classList.remove('flash-save');
@@ -206,7 +228,7 @@ async function updateProfileNameElement(profileNameElement, currentPageUserLogin
             tagLogins(document.body, currentPageUserLogin);
             updateNicknames(nicknames, currentPageUserLogin);
         } else {
-            resetButton.click();
+            if (resetButton) resetButton.click();
         }
 
         profileNameElement.contentEditable = false;
@@ -219,8 +241,6 @@ async function updateProfileNameElement(profileNameElement, currentPageUserLogin
             profileNameElement.blur();
         }
     });
-
-  if (savedName) profileNameElement.textContent = savedName;
 }
 
 runNicknamer();
