@@ -1,11 +1,11 @@
 body {
-	width: 150px; 
-	padding: 10px;
+	width: 200px; 
+	padding: 8px;
 	font-family:
 	sans-serif;
 	background-color: #222222;
 	color:white;
-	font-weight: bold;
+	font-size: 16px;
 }
 
 .centered {
@@ -37,7 +37,7 @@ input {
 	right: 0;
 	bottom: 0;
 	background-color: #d1d1d1;
-	transition: .4s;
+	transition: .2s;
 	border-radius: 20px;
 }
 
@@ -53,7 +53,7 @@ input:checked + .slider {
 	left: 2px;
 	bottom: 2px;
 	background-color:white;
-	transition: .4s;
+	transition: .2s;
 	border-radius: 50%;
 }
 

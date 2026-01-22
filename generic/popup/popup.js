@@ -1,19 +1,31 @@
-function reloadTargetTabs() {
-    browser.tabs.query({ url: "*://*.profile-v3.intra.42.fr/*" }).then((tabs => {
-        for (let tab of tabs) {
-            browser.tabs.reload(tab.id);
-            console.log(`Reloading tab ID: ${tab.id}`);
-        }
-    }));
+async function setupToggle(key, element) {
+    const result = await browser.storage.local.get(key);
+    element.checked = result[key]?.settings?.enabled ?? true;
+
+    element.addEventListener('change', async () => {
+        const data = await browser.storage.local.get(key);
+        const featureData = data[key] || { settings: {}, nicknames: {} };
+        
+        featureData.settings = { 
+            ...featureData.settings, 
+            enabled: element.checked 
+        };
+
+        await browser.storage.local.set({ [key]: featureData });
+        reloadTargetTabs();
+    });
 }
 
-const toggle = document.getElementById('toggleMode');
+function reloadTargetTabs() {
+    browser.tabs.query({ url: "*://*.profile-v3.intra.42.fr/*" }).then(tabs => {
+        for (let tab of tabs) {
+            browser.tabs.reload(tab.id);
+        }
+    });
+}
 
-browser.storage.local.get("enabled").then((result) => {
-    toggle.checked = result.enabled ?? true;
-});
+const toggleNicknamer = document.getElementById('toggle-nicknamer');
+const toggleCustomBG = document.getElementById('toggle-custombg');
 
-toggle.addEventListener('change', () => {
-    browser.storage.local.set({ enabled: toggle.checked });
-    reloadTargetTabs();
-});
+if (toggleNicknamer) setupToggle('nicknamer', toggleNicknamer);
+if (toggleCustomBG) setupToggle('custombg', toggleCustomBG);

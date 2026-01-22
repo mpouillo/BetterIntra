@@ -1,6 +1,6 @@
 async function setCustomBackground() {
-    const data = await DataStorage.getFeature('background');
-    if (data.settings?.enabled === false) return;
+    const data = await DataStorage.getFeature('custombg');
+    if (data?.settings?.enabled === false) return;
 
     const customImageUrl = data.image;
 
@@ -55,7 +55,7 @@ async function setCustomBackground() {
 
 						const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
-						await DataStorage.updateSettings('background', { image: compressedBase64 });
+						await DataStorage.updateSettings('custombg', { image: compressedBase64 });
 						window.location.reload();
 					};
 					img.src = e.target.result;
@@ -89,7 +89,7 @@ async function setCustomBackground() {
 			resetButton.style.display = customImageUrl ? 'inline-flex' : 'none';			
 
 			resetButton.addEventListener('click', async () => {
-				await DataStorage.updateSettings('background', {image: null});
+				await DataStorage.updateSettings('custombg', {image: null});
 
 				resetButton.style.display = 'none';
 				window.location.reload();
